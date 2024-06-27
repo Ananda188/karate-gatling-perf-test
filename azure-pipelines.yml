@@ -1,0 +1,60 @@
+# Maven
+# Build your Java project and run tests with Apache Maven.
+# Add steps that analyze code, save build artifacts, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/java
+
+trigger:
+- main
+
+stages:
+  - stage: Build
+    jobs:
+      - job: Build
+        displayName: DefectFix
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+            - task: CopyFiles@2
+              inputs:
+                SourceFolder: '$(System.DefaultWorkingDirectory)'
+                Contents: '**'
+                TargetFolder: '$(System.DefaultWorkingDirectory)/KarateGatlingProject'
+
+            - task: PublishBuildArtifacts@1
+              inputs:
+                PathtoPublish: '$(System.DefaultWorkingDirectory)/KarateGatlingProject'
+                ArtifactName: 'ProjectBuild'
+                publishLocation: 'Container'
+  
+  - stage: Test 
+    jobs: 
+      - job: MavenPerformanceTest
+        displayName: RegressionPerformanceTest
+        pool: 
+          vmImage: ubuntu-latest
+        steps:
+            - task: DownloadBuildArtifacts@1
+              inputs:
+                buildType: 'current'
+                downloadType: 'single'
+                artifactName: 'ProjectBuild'
+                downloadPath: '$(System.DefaultWorkingDirectory)'
+                checkDownloadedFiles: true
+            - task: DeleteFiles@1
+              inputs:
+                SourceFolder: '$(System.DefaultWorkingDirectory)/KarateGatlingProject/target/gatling'
+                Contents: '**' 
+            - task: CmdLine@2
+              inputs:
+                script: 'mvn clean test -P gatling'
+
+            - task: CopyFiles@2
+              inputs:
+                SourceFolder: '$(System.DefaultWorkingDirectory)/target/gatling'
+                Contents: '**'
+                TargetFolder: '$(System.DefaultWorkingDirectory)/Reports'
+            - task: PublishBuildArtifacts@1
+              inputs:
+                PathtoPublish: '$(System.DefaultWorkingDirectory)/Reports'
+                ArtifactName: 'TestReport'
+                publishLocation: 'Container'                
